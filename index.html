@@ -205,4 +205,59 @@
         startCall();
     </script>
 </body>
+</html> <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#121212">
+  <title>Code ChatGupt - Secret Proximity Chat</title>
+  
+  <!-- Link Web App Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- iOS Home Screen Compatibility -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+  <script>
+    // 1. Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((reg) => console.log('PWA Service Worker registered:', reg.scope))
+          .catch((err) => console.error('Service Worker registration failed:', err));
+      });
+    }
+
+    // 2. Custom "Add to Home Screen" Install Prompt Handler
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      
+      // Show custom install UI button
+      const installBtn = document.getElementById('pwa-install-btn');
+      if (installBtn) {
+        installBtn.style.display = 'block';
+        installBtn.addEventListener('click', () => {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User installed Code ChatGupt PWA');
+            }
+            deferredPrompt = null;
+            installBtn.style.display = 'none';
+          });
+        });
+      }
+    });
+  </script>
+</head>
+<body>
+  <button id="pwa-install-btn" style="display:none; position:fixed; bottom:20px; right:20px; z-index:9999; padding:12px 20px; background:#00ffcc; color:#000; border:none; border-radius:25px; font-weight:bold; cursor:pointer;">
+    📲 Install ChatGupt App
+  </button>
+</body>
 </html>
