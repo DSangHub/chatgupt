@@ -70,4 +70,42 @@ app.post('/api/payments/verify', async (req, res) => {
     }
 });
 
-app.listen(3000, () => console.log('ChatGupt Server running on port 3000'));
+app.listen(3000, () => console.log('ChatGupt Server running on port 3000'));const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: '*' } });
+
+// Store active socket rooms
+io.on('connection', (socket) => {
+    console.log(`User connected: ${socket.id}`);
+
+    // Join a private match room
+    socket.on('join-room', ({ roomId, userId }) => {
+        socket.join(roomId);
+        socket.to(roomId).emit('user-connected', { userId, socketId: socket.id });
+    });
+
+    // Relay WebRTC Offer
+    socket.on('offer', ({ roomId, offer }) => {
+        socket.to(roomId).emit('offer', { offer, senderSocketId: socket.id });
+    });
+
+    // Relay WebRTC Answer
+    socket.on('answer', ({ roomId, answer }) => {
+        socket.to(roomId).emit('answer', { answer });
+    });
+
+    // Relay ICE Candidates
+    socket.on('ice-candidate', ({ roomId, candidate }) => {
+        socket.to(roomId).emit('ice-candidate', { candidate });
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`User disconnected: ${socket.id}`);
+    });
+});
+
+server.listen(4000, () => console.log('Signaling server running on port 4000'));
