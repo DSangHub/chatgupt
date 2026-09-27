@@ -1,0 +1,54 @@
+{
+  "short_name": "ChatGupt",
+  "name": "Code ChatGupt - Secret Proximity Chat",
+  "description": "Secret, ephemeral chat with fuzzy location matching, video verification, and local merchant drop zones.",
+  "id": "/?source=pwa",
+  "start_url": "/?source=pwa",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#121212",
+  "background_color": "#0d0d0d",
+  "categories": ["social", "entertainment", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192-maskable.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Enter Drop Zone",
+      "short_name": "Drop Zone",
+      "description": "Join secret chat in your nearest metro hub",
+      "url": "/drop-zone",
+      "icons": [{ "src": "/icons/shortcut-zone.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Video Verify",
+      "short_name": "Verify",
+      "description": "Unlock video verification pass",
+      "url": "/verify",
+      "icons": [{ "src": "/icons/shortcut-verify.png", "sizes": "192x192" }]
+    }
+  ]
+}
