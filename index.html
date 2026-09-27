@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Code ChatGupt - Unlock Video Chat</title>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+    <h2>Unlock Authentic Video Verification</h2>
+    <p>Verify your identity and unlock video calls with local matches.</p>
+
+    <button id="pay-10-btn">One-Time Video Call Pass (₹10)</button>
+    <button id="pay-100-btn">Annual Unlimited Video Pass (₹100)</button>
+
+    <script>
+        async function triggerRazorpay(planType) {
+            const userId = "CURRENT_LOGGED_IN_USER_ID";
+            
+            // Fetch order details from backend
+            const response = await fetch('/api/payments/create-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId, planType })
+            });
+            const data = await response.json();
+
+            const options = {
+                "key": "YOUR_RAZORPAY_KEY_ID",
+                "amount": data.order.amount,
+                "currency": "INR",
+                "name": "Code ChatGupt",
+                "description": planType === 'SINGLE_VIDEO' ? "1x Video Chat Token" : "Annual Pass",
+                "order_id": data.order.id,
+                "handler": async function (res) {
+                    // Send signature to backend for verification
+                    await fetch('/api/payments/verify', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            razorpay_order_id: res.razorpay_order_id,
+                            razorpay_payment_id: res.razorpay_payment_id,
+                            razorpay_signature: res.razorpay_signature,
+                            userId,
+                            planType
+                        })
+                    });
+                    alert("Payment Verified! Video Chat Unlocked.");
+                },
+                "theme": { "color": "#121212" }
+            };
+            const rzp = new Razorpay(options);
+            rzp.open();
+        }
+
+        document.getElementById('pay-10-btn').onclick = () => triggerRazorpay('SINGLE_VIDEO');
+        document.getElementById('pay-100-btn').onclick = () => triggerRazorpay('ANNUAL_PASS');
+    </script>
+</body>
+</html>
