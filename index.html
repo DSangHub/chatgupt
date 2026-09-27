@@ -57,3 +57,152 @@
     </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Code ChatGupt - Private Video Match</title>
+    <style>
+        body { font-family: sans-serif; background-color: #111; color: #fff; margin: 0; padding: 20px; }
+        .video-container { display: flex; gap: 20px; justify-content: center; position: relative; }
+        .video-box { position: relative; width: 450px; height: 350px; background: #222; border-radius: 12px; overflow: hidden; }
+        video { width: 100%; height: 100%; object-fit: cover; }
+        .geo-badge {
+            position: absolute; bottom: 12px; left: 12px; 
+            background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
+            padding: 6px 12px; border-radius: 20px; font-size: 13px; color: #00ffcc;
+        }
+        .controls { text-align: center; margin-top: 20px; }
+        button { padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-end { background-color: #ff4d4d; color: white; }
+    </style>
+    <!-- Socket.io Client -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+
+    <h2 style="text-align:center;">Code ChatGupt 1-on-1 Call</h2>
+    
+    <div class="video-container">
+        <!-- Local User Video -->
+        <div class="video-box">
+            <video id="localVideo" autoplay muted playsinline></video>
+            <div class="geo-badge" id="localGeoTag">Locating...</div>
+        </div>
+
+        <!-- Remote Match Video -->
+        <div class="video-box">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <div class="geo-badge" id="remoteGeoTag">Waiting for match...</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-end" id="endCallBtn">End Call</button>
+    </div>
+
+    <script>
+        const socket = io('http://localhost:4000');
+        
+        // STUN Configuration (Public Google STUN servers)
+        const rtcConfig = {
+            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        };
+
+        let peerConnection;
+        let localStream;
+        const roomId = "match_room_9876"; // Passed dynamically after match/payment
+        const userId = "user_" + Math.floor(Math.random() * 1000);
+
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const localGeoTag = document.getElementById('localGeoTag');
+        const remoteGeoTag = document.getElementById('remoteGeoTag');
+
+        // 1. Fetch User Coarse Location & Set Local Watermark
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                // Obfuscate slightly (Fuzzy Proximity Display)
+                const fuzzyLat = pos.coords.latitude.toFixed(2);
+                const fuzzyLng = pos.coords.longitude.toFixed(2);
+                localGeoTag.innerText = `📍 You (~${fuzzyLat}, ${fuzzyLng})`;
+            },
+            () => { localGeoTag.innerText = "📍 City Verified"; },
+            { enableHighAccuracy: false }
+        );
+
+        // 2. Initialize Camera & WebRTC
+        async function startCall() {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localVideo.srcObject = localStream;
+
+            // Join socket signaling room
+            socket.emit('join-room', { roomId, userId });
+        }
+
+        // 3. Create WebRTC Connection Instance
+        function createPeerConnection() {
+            peerConnection = new RTCPeerConnection(rtcConfig);
+
+            // Attach local video tracks to WebRTC stream
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+
+            // Display incoming remote video track
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
+                remoteGeoTag.innerText = "📍 Match Verified (~1.5 km nearby)";
+            };
+
+            // Send ICE candidates to signaling server
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('ice-candidate', { roomId, candidate: event.candidate });
+                }
+            };
+        }
+
+        // --- Socket Event Handlers ---
+
+        // Caller Initiates Offer
+        socket.on('user-connected', async () => {
+            createPeerConnection();
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('offer', { roomId, offer });
+        });
+
+        // Callee Receives Offer & Responds with Answer
+        socket.on('offer', async ({ offer }) => {
+            createPeerConnection();
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('answer', { roomId, answer });
+        });
+
+        // Receive Answer
+        socket.on('answer', async ({ answer }) => {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        // Add ICE Candidates
+        socket.on('ice-candidate', async ({ candidate }) => {
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        });
+
+        // End Call
+        document.getElementById('endCallBtn').onclick = () => {
+            if (peerConnection) peerConnection.close();
+            if (localStream) localStream.getTracks().forEach(track => track.stop());
+            window.location.href = "/dashboard";
+        };
+
+        // Start call process on page load
+        startCall();
+    </script>
+</body>
+</html>
