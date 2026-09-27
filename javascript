@@ -107,5 +107,21 @@ io.on('connection', (socket) => {
         console.log(`User disconnected: ${socket.id}`);
     });
 });
+app.post('/api/meetups/reserve', async (req, res) => {
+    const { userId, meetupId } = req.body;
 
+    try {
+        const query = 'SELECT reserve_meetup_seat($1, $2, 100) AS result;';
+        const { rows } = await db.query(query, [userId, meetupId]);
+        const response = rows[0].result;
+
+        if (response.success) {
+            return res.status(200).json(response);
+        } else {
+            return res.status(400).json(response);
+        }
+    } catch (err) {
+        return res.status(500).json({ success: false, error: err.message });
+    }
+});
 server.listen(4000, () => console.log('Signaling server running on port 4000'));
