@@ -124,4 +124,118 @@ app.post('/api/meetups/reserve', async (req, res) => {
         return res.status(500).json({ success: false, error: err.message });
     }
 });
-server.listen(4000, () => console.log('Signaling server running on port 4000'));
+server.listen(4000, () => console.log('Signaling server running on port 4000'));const CACHE_NAME = 'chatgupt-v1.0.0';
+const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/css/app.css',
+  '/js/app.js',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png'
+];
+
+// 1. Service Worker Installation & Pre-caching
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log('[SW] Pre-caching app shell');
+      return cache.addAll(STATIC_ASSETS);
+    }).then(() => self.skipWaiting())
+  );
+});
+
+// 2. Service Worker Activation & Cache Cleanup
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cache) => {
+          if (cache !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache version:', cache);
+            return caches.delete(cache);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
+  );
+});
+
+// 3. Fetch Event Interceptor (Cache First with Network Fallback)
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Exclude real-time API endpoints, WebSocket connections, and Razorpay calls from caching
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/socket.io/') ||
+    url.hostname.includes('razorpay.com')
+  ) {
+    return; // Pass through directly to network
+  }
+
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+      return fetch(event.request).then((networkResponse) => {
+        // Cache newly fetched static assets on the fly
+        if (event.request.method === 'GET' && networkResponse.status === 200) {
+          const responseClone = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+        }
+        return networkResponse;
+      });
+    }).catch(() => {
+      // Offline Fallback Page if network fails
+      if (event.request.mode === 'navigate') {
+        return caches.match('/index.html');
+      }
+    })
+  );
+});
+
+// 4. Web Push Notification Event Handler (Match & Merchant Alerts)
+self.addEventListener('push', (event) => {
+  let data = { title: 'Code ChatGupt', body: 'New secret match nearby!' };
+  if (event.data) {
+    data = event.data.json();
+  }
+
+  const options = {
+    body: data.body,
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    vibrate: [100, 50, 100],
+    data: { url: data.url || '/' },
+    actions: [
+      { action: 'open', title: 'Open Chat' },
+      { action: 'dismiss', title: 'Dismiss' }
+    ]
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// 5. Notification Click Handler
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  if (event.action === 'dismiss') return;
+
+  const targetUrl = event.notification.data.url;
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
