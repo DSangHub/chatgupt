@@ -238,4 +238,73 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
+});const { createCanvas } = require('canvas');
+const fs = require('fs');
+const path = require('path');
+
+const outputDir = path.join(__dirname, 'public/icons');
+if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+
+function createPwaIcon(size, isMaskable = false) {
+    const canvas = createCanvas(size, size);
+    const ctx = canvas.getContext('2d');
+
+    // 1. Draw Background
+    if (isMaskable) {
+        ctx.fillStyle = '#121212'; // Solid app background for maskable
+        ctx.fillRect(0, 0, size, size);
+    } else {
+        // Transparent or slightly rounded for standard icons
+        ctx.clearRect(0, 0, size, size);
+    }
+
+    // 2. Calculate Safe Area Padding
+    // Maskable icons restrict graphic to inner 80% circle (40% radius)
+    const scale = isMaskable ? 0.6 : 0.8;
+    const center = size / 2;
+    const graphicSize = size * scale;
+
+    // 3. Draw Icon Logo (Code ChatGupt - Masked Spy / Speech Bubble Motif)
+    ctx.save();
+    ctx.translate(center, center);
+
+    // Chat Bubble Base
+    ctx.fillStyle = '#00ffcc';
+    ctx.beginPath();
+    ctx.arc(0, -graphicSize * 0.05, graphicSize * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Inner Stealth/Secret Eye Element
+    ctx.fillStyle = '#121212';
+    ctx.beginPath();
+    ctx.ellipse(0, -graphicSize * 0.05, graphicSize * 0.22, graphicSize * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Pupil
+    ctx.fillStyle = '#00ffcc';
+    ctx.beginPath();
+    ctx.arc(0, -graphicSize * 0.05, graphicSize * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+
+    // "CG" Brand Monogram Text at Bottom
+    ctx.fillStyle = isMaskable ? '#00ffcc' : '#ffffff';
+    ctx.font = `bold ${Math.round(graphicSize * 0.22)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('CHATGUPT', 0, graphicSize * 0.28);
+
+    ctx.restore();
+
+    // 4. Export PNG Stream
+    const filename = isMaskable ? `icon-${size}-maskable.png` : `icon-${size}.png`;
+    const out = fs.createWriteStream(path.join(outputDir, filename));
+    const stream = canvas.createPNGStream();
+    stream.pipe(out);
+    out.on('finish', () => console.log(`[Generated] ${filename}`));
+}
+
+// Generate Standard & Maskable Icon Assets
+[192, 512].forEach(size => {
+    createPwaIcon(size, false); // Standard (transparent/any)
+    createPwaIcon(size, true);  // Maskable (solid background + safe padding)
 });
